@@ -1,0 +1,60 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build Application with Maven
+        run: |
+          cd authentication-service
+          mvn clean package -DskipTests
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.password }}" | sudo docker login -u "raja517" --password-stdin
+
+      - name: Build and Push Docker Image
+        run: |
+          cd authentication-service
+          sudo docker build -t raja517/authentication:demo .
+          sudo docker push raja517/authentication:demo
+
+  deploy:
+    runs-on: self-hosted
+    needs: build-and-push
+    steps:
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.password }}" | sudo docker login -u "raja517" --password-stdin
+
+      - name: Remove Old Container
+        run: |
+          sudo docker stop authentication_demo || true
+          sudo docker rm authentication_demo || true
+
+      - name: Clean Up Old Images
+        run: sudo docker image prune -a -f
+
+      - name: Pull Latest Image
+        run: sudo docker pull raja517/authentication:demo
+
+      - name: Run New Container
+        run: |
+          sudo docker run -d \
+            --restart always \
+            --name authentication_demo \
+            --network host \
+            raja517/authentication:demo
