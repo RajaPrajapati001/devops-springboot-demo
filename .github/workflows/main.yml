@@ -29,7 +29,6 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          cd authentication-service
           sudo docker build -t raja517/authentication:demo .
           sudo docker push raja517/authentication:demo
 
